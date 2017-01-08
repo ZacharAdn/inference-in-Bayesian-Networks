@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Vector;
 
@@ -9,12 +10,12 @@ public class Var {
     String varName;
     String [] values;
     String [] parents;
-    String [][] CPT;
+    myParameter [][] CPT;
 
     public Var() {
     }
 
-    public Var(String varName, String[] values, String[] parents, String[][] CPT) {
+    public Var(String varName, String[] values, String[] parents, myParameter [][] CPT) {
         this.varName = varName;
         this.values = values;
         this.parents = parents;
@@ -45,11 +46,11 @@ public class Var {
         this.parents = parents;
     }
 
-    public String[][] getCPT() {
+    public myParameter[][] getCPT() {
         return CPT;
     }
 
-    public void setCPT(String[][] CPT) {
+    public void setCPT(myParameter[][] CPT) {
         this.CPT = CPT;
     }
 
@@ -58,8 +59,8 @@ public class Var {
         String cpt="";
 
 
-        for (String[] aCPT : CPT) {
-            cpt += Arrays.toString(aCPT) + "\n";
+        for (myParameter[] row: CPT) {
+            cpt += Arrays.toString(row) + "\n";
         }
 
         return "Var " + varName +

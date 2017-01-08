@@ -3,6 +3,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 
 /**
@@ -14,9 +15,10 @@ public class readFile {
     private HashMap<String, Var> Vars;
 
     public readFile(String fileName) {
+        Vars = new HashMap<>();
         int rows,columns,numOfParentsValues;
         String line;
-        String[][] CPT;
+        myParameter[][] CPT;
         String[] names,cptLine;
 
         try {
@@ -24,27 +26,17 @@ public class readFile {
             BufferedReader bufferReader = new BufferedReader(inputFile);
 
 
+            //resad all the vars from the file.
             if(bufferReader.readLine().contains("Network")) {
                 line = bufferReader.readLine();
                 bufferReader.readLine();
                 line = line.substring(11,line.length());
                 names = line.split(",");
-//                Vars = new Var[names.length];
-
-                Vars = new HashMap<>();
-
-//                for (int i = 0; i < Vars.size(); i++) {
-//                    Vars[i]= new Var();
-//                    Vars[i].setVarName(names[i]);
-//                }
-
-
-//                for (Var currentVar : Vars) {
-//                while((line = bufferReader.readLine()) != null){
 
                 for (int i = 0; i < names.length; i++) {
 
                     line = bufferReader.readLine();
+
                     if (line.contains("Var")) {
                         Var currentVar = new Var();
 
@@ -72,22 +64,28 @@ public class readFile {
                         }
 
                         rows = numOfParentsValues;
-                        columns = currentVar.getParents().length + (currentVar.getValues().length - 1);
 
-                        CPT = new String[rows][columns];
+                        int queryPart = currentVar.getParents().length;
+                        int evidancePart =  (currentVar.getValues().length - 1);
+
+                        columns = queryPart + evidancePart;
+
+                        CPT = new myParameter[rows][columns];
                         bufferReader.readLine();
 
                         for (int j = 0; j < CPT.length; j++) {
                             line = bufferReader.readLine();
                             cptLine = line.split(",");
                             int wordsCount = 0;
+
                             for (int k = 0; k < CPT[0].length; k++) {
-                                if (cptLine[wordsCount].contains("=")) {
-                                    CPT[j][k] = cptLine[wordsCount++].substring(1) + "," + cptLine[wordsCount++];
-                                } else {
-                                    CPT[j][k] = cptLine[wordsCount++];
+                                if(cptLine[wordsCount].contains("=")){
+                                    CPT[j][k] = new myParameter(cptLine[wordsCount++].substring(1),cptLine[wordsCount++]);
+                                }else {
+                                    CPT[j][k] = new myParameter(currentVar.getParents()[k], cptLine[wordsCount++]);
                                 }
                             }
+
                         }
                         currentVar.setCPT(CPT);
                         Vars.put(currentVar.getVarName(),currentVar);
@@ -98,6 +96,11 @@ public class readFile {
             }
 
 
+            for (Map.Entry<String , Var> varEntry : Vars.entrySet()){
+                System.out.println(varEntry.getValue());
+            }
+
+            // read all the queries from the file
             if(bufferReader.readLine().contains("Queries")){
                 Queries  = new ArrayList<>();
                 while((line = bufferReader.readLine()) != null){
@@ -116,22 +119,11 @@ public class readFile {
                 }
             }
 
-
+            for (myQuery query : Queries){
+                System.out.println(query);
+            }
 
             bufferReader.close();
-
-
-//            Iterator iterator = Vars.entrySet().iterator();
-//
-//            while (iterator.hasNext()){
-//
-//                System.out.println(iterator.next());
-//            }
-////            Vars.
-//            for (Map.Entry<String,Var> entry : Vars.entrySet()) {
-//                System.out.println(entry.getKey());
-//                System.out.println(entry.getValue());
-//            }
 
         } catch (IOException e) {
             e.printStackTrace();

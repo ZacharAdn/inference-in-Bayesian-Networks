@@ -3,11 +3,11 @@
  */
 public class myParameter {
     String queryName;
-    String bool;
+    String value;
 
-    public myParameter(String queryName, String bool) {
+    public myParameter(String queryName, String value) {
         this.queryName = queryName;
-        this.bool = bool;
+        this.value = value;
     }
 
 
@@ -19,16 +19,27 @@ public class myParameter {
         this.queryName = queryName;
     }
 
-    public String getBool() {
-        return bool;
+    public String getValue() {
+        return value;
     }
 
-    public void setBool(String bool) {
-        this.bool = bool;
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        myParameter that = (myParameter) o;
+
+        if (queryName != null ? !queryName.equals(that.queryName) : that.queryName != null) return false;
+        return value != null ? value.equals(that.value) : that.value == null;
     }
 
     @Override
     public String toString() {
-        return queryName + "=" + bool;
+        return queryName + "=" + value;
     }
 }

@@ -5,12 +5,12 @@ import java.util.ArrayList;
  */
 public class myQuery {
 
-    myParameter query;
+    myParameter mainQuery;
     ArrayList<myParameter> evidences;
     int algoNum;
 
     public myQuery(myParameter query, ArrayList<myParameter> evidences, int algoNum) {
-        this.query = query;
+        this.mainQuery = query;
         this.evidences = evidences;
         this.algoNum = algoNum;
     }
@@ -23,12 +23,12 @@ public class myQuery {
         this.algoNum = algoNum;
     }
 
-    public myParameter getQuery() {
-        return query;
+    public myParameter getMainQuery() {
+        return mainQuery;
     }
 
-    public void setQuery(myParameter query) {
-        this.query = query;
+    public void setMainQuery(myParameter mainQuery) {
+        this.mainQuery = mainQuery;
     }
 
     public ArrayList<myParameter> getEvidences() {
@@ -45,6 +45,6 @@ public class myQuery {
         for (myParameter evi : evidences){
             evidence += evi + ",";
         }
-        return "P(" + query + " | " + evidences + ") , " + algoNum;
+        return "P(" + mainQuery + " | " + evidences + ") , " + algoNum;
     }
 }
