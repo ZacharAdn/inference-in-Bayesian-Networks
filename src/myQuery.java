@@ -5,13 +5,13 @@ import java.util.ArrayList;
  */
 public class myQuery {
 
-    myParameter mainQuery;
-    ArrayList<myParameter> evidences;
-    int algoNum;
+    private Variable queryVariable;
+    private ArrayList<Variable> evidenceVariables;
+    private int algoNum;
 
-    public myQuery(myParameter query, ArrayList<myParameter> evidences, int algoNum) {
-        this.mainQuery = query;
-        this.evidences = evidences;
+    public myQuery(Variable query, ArrayList<Variable> evidenceVariables, int algoNum) {
+        this.queryVariable = query;
+        this.evidenceVariables = evidenceVariables;
         this.algoNum = algoNum;
     }
 
@@ -23,28 +23,28 @@ public class myQuery {
         this.algoNum = algoNum;
     }
 
-    public myParameter getMainQuery() {
-        return mainQuery;
+    public Variable getQueryVariable() {
+        return queryVariable;
     }
 
-    public void setMainQuery(myParameter mainQuery) {
-        this.mainQuery = mainQuery;
+    public void setQueryVariable(Variable queryVariable) {
+        this.queryVariable = queryVariable;
     }
 
-    public ArrayList<myParameter> getEvidences() {
-        return evidences;
+    public ArrayList<Variable> getEvidenceVariables() {
+        return evidenceVariables;
     }
 
-    public void setEvidences(ArrayList<myParameter> evidences) {
-        this.evidences = evidences;
+    public void setEvidenceVariables(ArrayList<Variable> evidenceVariables) {
+        this.evidenceVariables = evidenceVariables;
     }
 
     @Override
     public String toString() {
         String evidence = "";
-        for (myParameter evi : evidences){
+        for (Variable evi : evidenceVariables){
             evidence += evi + ",";
         }
-        return "P(" + mainQuery + " | " + evidences + ") , " + algoNum;
+        return "P(" + queryVariable + " | " + evidenceVariables + ") , " + algoNum;
     }
 }

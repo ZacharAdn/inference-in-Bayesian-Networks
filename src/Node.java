@@ -1,21 +1,19 @@
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Vector;
 
 /**
  * Created by zahar on 28/12/16.
  */
-public class Var {
+public class Node {
 
-    String varName;
-    String [] values;
-    String [] parents;
-    myParameter [][] CPT;
+    private String varName;
+    private String [] values;
+    private String [] parents;
+    private Variable[][] CPT;
 
-    public Var() {
+    public Node() {
     }
 
-    public Var(String varName, String[] values, String[] parents, myParameter [][] CPT) {
+    public Node(String varName, String[] values, String[] parents, Variable[][] CPT) {
         this.varName = varName;
         this.values = values;
         this.parents = parents;
@@ -46,11 +44,11 @@ public class Var {
         this.parents = parents;
     }
 
-    public myParameter[][] getCPT() {
+    public Variable[][] getCPT() {
         return CPT;
     }
 
-    public void setCPT(myParameter[][] CPT) {
+    public void setCPT(Variable[][] CPT) {
         this.CPT = CPT;
     }
 
@@ -59,7 +57,7 @@ public class Var {
         String cpt="";
 
 
-        for (myParameter[] row: CPT) {
+        for (Variable[] row: CPT) {
             cpt += Arrays.toString(row) + "\n";
         }
 

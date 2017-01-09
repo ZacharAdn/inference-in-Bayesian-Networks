@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 
 /**
  * Created by zahar on 01/01/17.
@@ -12,13 +11,13 @@ import java.util.Vector;
 public class readFile {
 
     private ArrayList<myQuery> Queries;
-    private HashMap<String, Var> Vars;
+    private HashMap<String, Node> Vars;
 
     public readFile(String fileName) {
         Vars = new HashMap<>();
         int rows,columns,numOfParentsValues;
         String line;
-        myParameter[][] CPT;
+        Variable[][] CPT;
         String[] names,cptLine;
 
         try {
@@ -38,39 +37,39 @@ public class readFile {
                     line = bufferReader.readLine();
 
                     if (line.contains("Var")) {
-                        Var currentVar = new Var();
+                        Node currentNode = new Node();
 
-                        currentVar.setVarName(line.substring(4));
+                        currentNode.setVarName(line.substring(4));
                         line = bufferReader.readLine().substring(7);
-                        currentVar.setValues(line.split(","));
+                        currentNode.setValues(line.split(","));
 
                         line = bufferReader.readLine();
                         numOfParentsValues =1;
 
                         if (!line.contains("none")) {
                             line= line.substring(9);
-                            currentVar.setParents(line.split(","));
+                            currentNode.setParents(line.split(","));
 
-                            for (String parent : currentVar.getParents()) {
+                            for (String parent : currentNode.getParents()) {
                                     if (Vars.containsKey(parent)) {
-                                        Var var = Vars.get(parent);
-                                        if (var.getValues() != null) {
-                                            numOfParentsValues *= var.getValues().length;
+                                        Node node = Vars.get(parent);
+                                        if (node.getValues() != null) {
+                                            numOfParentsValues *= node.getValues().length;
                                         }
                                 }
                             }
                         }else {
-                            currentVar.setParents(new String[0]);
+                            currentNode.setParents(new String[0]);
                         }
 
                         rows = numOfParentsValues;
 
-                        int queryPart = currentVar.getParents().length;
-                        int evidancePart =  (currentVar.getValues().length - 1);
+                        int queryPart = currentNode.getParents().length;
+                        int evidancePart =  (currentNode.getValues().length - 1);
 
                         columns = queryPart + evidancePart;
 
-                        CPT = new myParameter[rows][columns];
+                        CPT = new Variable[rows][columns];
                         bufferReader.readLine();
 
                         for (int j = 0; j < CPT.length; j++) {
@@ -80,48 +79,48 @@ public class readFile {
 
                             for (int k = 0; k < CPT[0].length; k++) {
                                 if(cptLine[wordsCount].contains("=")){
-                                    CPT[j][k] = new myParameter(cptLine[wordsCount++].substring(1),cptLine[wordsCount++]);
+                                    CPT[j][k] = new Variable(cptLine[wordsCount++].substring(1),cptLine[wordsCount++]);
                                 }else {
-                                    CPT[j][k] = new myParameter(currentVar.getParents()[k], cptLine[wordsCount++]);
+                                    CPT[j][k] = new Variable(currentNode.getParents()[k], cptLine[wordsCount++]);
                                 }
                             }
 
                         }
-                        currentVar.setCPT(CPT);
-                        Vars.put(currentVar.getVarName(),currentVar);
+                        currentNode.setCPT(CPT);
+                        Vars.put(currentNode.getVarName(), currentNode);
                         bufferReader.readLine();
 
                     }
                 }
             }
 
-
-            for (Map.Entry<String , Var> varEntry : Vars.entrySet()){
-                System.out.println(varEntry.getValue());
-            }
+//
+//            for (Map.Entry<String , Node> varEntry : Vars.entrySet()){
+//                System.out.println(varEntry.getValue());
+//            }
 
             // read all the queries from the file
             if(bufferReader.readLine().contains("Queries")){
                 Queries  = new ArrayList<>();
                 while((line = bufferReader.readLine()) != null){
-                    ArrayList<myParameter> Evidences = new ArrayList<>();
+                    ArrayList<Variable> evidenceList = new ArrayList<>();
                     String [] queryPart = line.substring(line.indexOf("(")+1,line.indexOf("|")).split("=");
                     String [] evidencePart = line.substring(line.indexOf("|")+1,line.indexOf(")")).split(",");
                     int algoNum = Integer.parseInt(line.substring(line.indexOf(")")+2));
 
 
-                    for (String evi : evidencePart) {
-                        String [] ek = evi.split("=");
-                        Evidences.add(new myParameter(ek[0],ek[1]));
+                    for (String evidence : evidencePart) {
+                        String [] split = evidence.split("=");
+                        evidenceList.add(new Variable(split[0],split[1]));
                     }
 
-                    Queries.add(new myQuery(new myParameter(queryPart[0],queryPart[1]), Evidences,algoNum));
+                    Queries.add(new myQuery(new Variable(queryPart[0],queryPart[1]), evidenceList,algoNum));
                 }
             }
 
-            for (myQuery query : Queries){
-                System.out.println(query);
-            }
+//            for (myQuery query : Queries){
+//                System.out.println(query);
+//            }
 
             bufferReader.close();
 
@@ -140,11 +139,11 @@ public class readFile {
     }
 
 
-    public HashMap<String, Var> getVars() {
+    public HashMap<String, Node> getVars() {
         return Vars;
     }
 
-    public void setVars(HashMap<String, Var> vars) {
+    public void setVars(HashMap<String, Node> vars) {
         Vars = vars;
     }
 }
