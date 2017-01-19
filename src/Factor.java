@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 /**
  * Created by zahar on 08/01/17.
@@ -9,32 +10,19 @@ public class Factor implements Comparable<Factor>{
     private ArrayList<ArrayList<Variable>> factorTable;
     private String varName;
     private int varParentsNum;
-    private ArrayList<String> variables;
+    private HashMap<String, Integer> variables;
 
     public Factor() {
         factorTable = new ArrayList<>();
-        variables = new ArrayList<>();
+        variables = new HashMap<>();//map of the var name and the column in the factor table
     }
 
-    public Factor(String _varName, int _varParentsNum, ArrayList<ArrayList<Variable>> _factor , ArrayList<String> _variables) {
+    public Factor(String _varName, int _varParentsNum, ArrayList<ArrayList<Variable>> _factor , HashMap<String, Integer> _variables) {
         varName = _varName;
         varParentsNum = _varParentsNum;
         factorTable = _factor;
         variables = _variables;
-
-//        findVariables();
     }
-
-//    private void findVariables() {
-//        variables.add(varName);
-//        for (int i = 0; i < factorTable.size(); i++) {
-//            for (int j = 0; j < varParentsNum; j++) {
-//                if(!variables.contains(factorTable.get(i).get(j).getVariableName())){
-//                    variables.add(factorTable.get(i).get(j).getVariableName());
-//                }
-//            }
-//        }
-//    }
 
     public ArrayList<ArrayList<Variable>> getFactorTable() {
         return factorTable;
@@ -52,11 +40,11 @@ public class Factor implements Comparable<Factor>{
         this.varName = varName;
     }
 
-    public ArrayList<String> getVariables() {
+    public HashMap<String, Integer> getVariables() {
         return variables;
     }
 
-    public void setVariables(ArrayList<String> variables) {
+    public void setVariables(HashMap<String, Integer> variables) {
         this.variables = variables;
     }
 
@@ -75,15 +63,15 @@ public class Factor implements Comparable<Factor>{
             factorPrint += row + "\n";
         }
 
-        return varName +" - factorTable table: \n" + factorPrint;
+        return varName +" - variables: "+ variables  + " factorTable : \n" + factorPrint;
     }
 
 
     @Override
     public int compareTo(Factor factor) {
-        if(factor.getVarParentsNum() > this.getVarParentsNum()){
+        if(factor.getFactorTable().get(0).size() > this.getFactorTable().get(0).size()){
             return -1;
-        }else if(factor.getVarParentsNum() < this.getVarParentsNum()){
+        }else if(factor.getFactorTable().get(0).size() < this.getFactorTable().get(0).size()){
             return 1;
         }else{
             return 0;

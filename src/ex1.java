@@ -7,7 +7,7 @@ public class ex1 {
 
 
     public static void main(String[] args) {
-        readFile file = new readFile("/home/zahar/IdeaProjects/AlgoDecisions/src/files/input2.txt");
+        readFile file = new readFile("/home/zahar/IdeaProjects/AlgoDecisions/src/files/input.txt");
 
         ArrayList<myQuery> queries = file.getQueries();
         HashMap<String, Node> Vars = file.getVars();
@@ -17,7 +17,7 @@ public class ex1 {
 
         for (myQuery query : queries) {
             if (query.getAlgoNum() == 1) {
-                algorithms.firstAlgo(query);
+//                algorithms.firstAlgo(query);
             } else if (query.getAlgoNum() == 2) {
                 algorithms.secondAlgo(query);
             } else {
