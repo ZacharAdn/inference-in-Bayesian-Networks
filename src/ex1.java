@@ -17,7 +17,7 @@ public class ex1 {
 
         for (myQuery query : queries) {
             if (query.getAlgoNum() == 1) {
-//                algorithms.firstAlgo(query);
+                algorithms.firstAlgo(query);
             } else if (query.getAlgoNum() == 2) {
                 algorithms.secondAlgo(query);
             } else {

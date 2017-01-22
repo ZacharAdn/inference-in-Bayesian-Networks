@@ -8,6 +8,11 @@ public class Variable {
     public Variable() {
     }
 
+    public Variable(Variable var) {
+        this.variableName = var.variableName;
+        this.value = var.value;
+    }
+
     public Variable(String variableName, String value) {
         this.variableName = variableName;
         this.value = value;

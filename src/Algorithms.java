@@ -9,52 +9,477 @@ public class Algorithms {
     private DecimalFormat decimalFormat;
     private HashMap<String, Node> Vars;
     private HashMap<String, Variable> knownVariebles;
-    private int mullCount;
+    private int mulCount;
     private int plusCount;
+    private int FIRST_ELEMENT = 0;
 
-
+    /**
+     * Constructor for Algorithms
+     * @param _Vars
+     */
     public Algorithms(HashMap<String, Node> _Vars) {
         Vars=_Vars;
         decimalFormat = new DecimalFormat("#.#####");
     }
 
-
-
+    /**
+     * Variable Elimination Algorithm
+     * @param query
+     */
     public void secondAlgo(myQuery query) {
-        System.out.println("\n\nNEW QUERY:" +query +"\n\n");
 
-        ArrayList<String> hiddensList = getHiddens(query);
-        ArrayList<Factor> factorsList = initialFactors(query,hiddensList);
-
-        hiddensList.sort(String::compareTo);// sort the hidden by the alphabet (ABC)
-
-        //TODO while query not empty
-        for (int i = 0; i < hiddensList.size(); i++) {
-            ArrayList<Factor> factorsToJoin = findFacrotsToJoin(factorsList, hiddensList.get(i));
-
-            for (int j = 0; j < factorsToJoin.size() - 1; j++) {
-//                Factor newFactor = JoinFactors(factorsToJoin.get(j), factorsToJoin.get(j + 1), hiddensList.get(i));
-
-
-//                factorsList.remove(factorsToJoin.get(j));
-//                factorsList.remove(factorsToJoin.get(j+1));
-//
-//                factorsList.add(newFactor);
-            }
-
-        }
-        //finally, the query variable - join of all the factors
+        EliminationAlgo(query,"alphabet");
 
     }
 
+    public void thirdAlgo(myQuery query) {
+
+        EliminationAlgo(query,"varRows");
+    }
+
+    private void EliminationAlgo(myQuery query, String eliminationType) {
+
+        plusCount = 0;
+        mulCount = 0;
+
+        System.out.println("\n QUERY:" +query );
+
+        // find the hiddens of the current query
+        ArrayList<String> hiddenList = getHiddens(query);
+
+        // convert all the CPT's to factors
+        ArrayList<Factor> factorsList = initialFactors(query);
+
+
+        if(eliminationType.equals("alphabet")){
+
+            // sort the hidden by the alphabet (ABC)
+            hiddenList.sort(String::compareTo);
+
+        }else if(eliminationType.equals("varRows")){
+
+            //sort the hidden by num of rows in the factors - new object for that
+
+            ArrayList<Hidden> sortedHiddenList = new ArrayList<>();
+            for(String hiddenName : hiddenList){
+                Hidden currentHidden = new Hidden(hiddenName);
+
+                for(Factor factor : factorsList){
+                    if(factor.getVariables().containsKey(hiddenName)) {
+                        currentHidden.setRowsAppearanseCount(currentHidden.getRowsAppearanseCount() + factor.getFactorTable().size());
+                    }
+                }
+                sortedHiddenList.add(currentHidden);
+            }
+            sortedHiddenList.sort(Hidden::compareTo);
+
+            hiddenList.clear();
+            for(Hidden hidden : sortedHiddenList){
+                hiddenList.add(hidden.getName());
+            }
+
+        }
+
+        while (!hiddenList.isEmpty()){
+
+            //hidden that we Join and eliminate
+            String Hidden = hiddenList.remove(FIRST_ELEMENT);
+
+            // all the factors that contains this hidden
+            ArrayList<Factor> hiddenFactors = findFacrotsToJoin(factorsList, Hidden);
+            Factor afterJoinFactor = new Factor();
+
+
+            while(!hiddenFactors.isEmpty()){
+                Factor Factor_1 = hiddenFactors.remove(FIRST_ELEMENT);
+
+                //check if that is only one factor in the list
+                if(!hiddenFactors.isEmpty()) {
+                    Factor Factor_2 = hiddenFactors.remove(FIRST_ELEMENT);
+
+                    //Join between 2 factors
+                    afterJoinFactor = JoinFactors(Factor_1, Factor_2, Hidden);
+
+                    //update lists after join -
+                    // add to the current hidden the new after join factor and remove from the main factor list the old factors
+                    hiddenFactors.add(afterJoinFactor);
+                    hiddenFactors.sort(Factor::compareTo);//the smallest factor always first
+                    factorsList.remove(Factor_1);
+                    factorsList.remove(Factor_2);
+
+                }else{// its only one factor for this hidden - need to eliminate hidden column before proceed
+                    //the Elimination
+                    Elimination(afterJoinFactor);
+                    factorsList.add(afterJoinFactor);
+                }
+            }
+
+        }
+
+        //final Join between all the factors that left
+        while (factorsList.size() > 1){
+            Factor resultQuery;
+            Factor factor = factorsList.remove(FIRST_ELEMENT);
+            if(!factorsList.isEmpty()) {
+                resultQuery = JoinFactors(factor, factorsList.remove(FIRST_ELEMENT), "ANSWER_QUERY");
+            }else{
+                resultQuery = factor;
+            }
+            factorsList.add(resultQuery);
+        }
+
+        //the final result of the query
+        double ans = normlizeAns(factorsList.get(FIRST_ELEMENT) , query.getQueryVariable());
+
+        System.out.println("ANSWER : " + ans);
+        System.out.println("pluses : " + plusCount + " , muls : "+ mulCount);
+
+    }
+
+    /**
+     * The Join between factors operation
+     * @param factor1
+     * @param factor2
+     * @param hiddenVar
+     * @return the after join new factor
+     */
+    private Factor JoinFactors(Factor factor1, Factor factor2, String hiddenVar) {
+        ArrayList<ArrayList<Variable>> ansFactorTable = new ArrayList<>();
+        int parentsNum = 0;
+        if(Vars.get(hiddenVar) != null){
+            parentsNum = Vars.get(hiddenVar).getParents().length;
+        }
+
+        Factor result = new Factor(hiddenVar,parentsNum,ansFactorTable);
+
+        //finds all the mutual variables on the 2 factors
+        ArrayList<String> shared = sharedVarsInFactors(factor1.getVariables(), factor2.getVariables());
+
+        //iterate the first factor rows
+        for (int i = 0; i < factor1.getFactorTable().size(); i++) {
+            ArrayList<Variable> rowFactor1 = factor1.getFactorTable().get(i);
+
+            //iterate the second factor rows
+            for (int j = 0; j < factor2.getFactorTable().size(); j++) {
+                double mulAns;
+                boolean canMerge = true;
+
+                ArrayList<Variable> rowFactor2 = factor2.getFactorTable().get(j);
+
+                //for every mutual variable on the factors - find the column and check if equals
+                for (String sharedVar : shared) {
+                    canMerge = true;
+
+                    if(factor1.getVariables().get(sharedVar) != null && factor2.getVariables().get(sharedVar) != null){
+                        //the column of the mutual var in factor 1
+                        int column1 = factor1.getVariables().get(sharedVar);
+                        //the column of the mutual var in factor 2
+                        int column2 = factor2.getVariables().get(sharedVar);
+
+                        // if the mutual variable has the same value
+                        if (!rowFactor1.get(column1).equals(rowFactor2.get(column2))) {
+                            canMerge = false;
+                        }
+                    }else{// cant merge the rows
+                        canMerge = false;
+                    }
+                }
+
+                ArrayList<Variable> ansRow = new ArrayList<>();
+                //rows merging
+                if(canMerge){
+                    //the value for the result row
+                    String valAns = rowFactor2.get(rowFactor2.size()-1).getVariableName();
+
+                    //the multiplying of the rows probability
+                    mulAns = Double.parseDouble(rowFactor1.get(rowFactor1.size()-1).getValue()) *
+                            Double.parseDouble(rowFactor2.get(rowFactor2.size()-1).getValue());
+                    mulCount++;
+
+                    //the merge
+                    ArrayList<Variable> tmpRow = new ArrayList<>(rowFactor1);
+                    tmpRow.remove(rowFactor1.size()-1);
+                    tmpRow.removeAll(rowFactor2);
+                    ansRow.addAll(rowFactor2);
+                    ansRow.remove(rowFactor2.size()-1);
+                    ansRow.addAll(tmpRow);
+
+                    //the new probability row insert
+                    ansRow.add(new Variable(valAns, String.valueOf(mulAns)));
+
+                    //add to the factor table
+                    ansFactorTable.add(ansRow);
+                }
+            }
+        }
+
+        //find the column for every variable in the factor
+        generateVariables(result);
+
+        return result;
+    }
+
+    /**
+     *
+     * @param factorsList
+     * @param hiddenVariable
+     * @return all the factors that contains the hidden Variable
+     */
+    private ArrayList<Factor> findFacrotsToJoin(ArrayList<Factor> factorsList, String hiddenVariable) {
+        ArrayList<Factor> factorsToJoin = new ArrayList<>();
+        for (Factor factor : factorsList) {
+            if (factor.getVariables().containsKey(hiddenVariable)  && !factorsToJoin.contains(factor)) {
+                factorsToJoin.add(factor);
+            }
+        }
+
+        factorsToJoin.sort(Factor::compareTo);//the smallest factor first
+
+        return factorsToJoin;
+    }
+
+    /**
+     * Eliminate the hidden variable from the factor
+     * @param afterJoinFactor
+     */
+    private void Elimination(Factor afterJoinFactor) {
+
+        ArrayList<ArrayList<Variable>> ansTable = new ArrayList<>();
+
+        while (!afterJoinFactor.getFactorTable().isEmpty()){
+            // array of probabilities
+            double[] probabilityAns = new double[Vars.get(afterJoinFactor.getVarName()).getValues().length];
+            plusCount += (probabilityAns.length-1);
+            int count =0;
+
+            //the final row
+            ArrayList<Variable> ansRow = afterJoinFactor.getFactorTable().remove(FIRST_ELEMENT);
+            String valAns = ansRow.get(ansRow.size()-1).getVariableName();
+            probabilityAns[count++] = Double.parseDouble(ansRow.remove(ansRow.size()-1).getValue());
+
+            //removes the probability and the eliminate variable from answer
+            for (int j = 0; j < ansRow.size(); j++){
+                Variable var = ansRow.get(j);
+                if(var.getVariableName().equals(afterJoinFactor.getVarName())){
+                    ansRow.remove(var);
+                    j--;
+                }
+            }
+
+            //delete rows and saves their probabilities
+            ArrayList<ArrayList<Variable>> rowsToDell = new ArrayList<>();
+            for (ArrayList<Variable> row : afterJoinFactor.getFactorTable()){
+                if(row.containsAll(ansRow)){
+                    probabilityAns[count++] = Double.parseDouble(row.get(row.size()-1).getValue());
+                    rowsToDell.add(row);
+                }
+            }
+            afterJoinFactor.getFactorTable().removeAll(rowsToDell);
+
+            //probability calculation
+            double plusAns = 0;
+            for (int i = 0; i < probabilityAns.length; i++) {
+                plusAns += probabilityAns[i];
+            }
+            String result = String.valueOf(plusAns);
+            ansRow.add(new Variable(valAns,result));
+
+            ansTable.add(ansRow);
+        }
+        afterJoinFactor.setFactorTable(ansTable);
+        generateVariables(afterJoinFactor);
+
+    }
+
+    /**
+     * the func that call to CPTtpFactor func foe every variable
+     * @param query
+     * @return
+     */
+    private ArrayList<Factor> initialFactors(myQuery query) {
+        ArrayList<Factor> factorsList = new ArrayList<>();
+        HashMap<String,Variable> evidenceMap =  new HashMap<>();
+
+        //Variable queryVariable = query.getQueryVariable();
+        ArrayList<Variable> evidenceVariables = query.getEvidenceVariables();
+        for(Variable evidence : evidenceVariables ){
+            evidenceMap.put(evidence.getVariableName(), evidence);
+        }
+
+        // factor for eche variable
+        for (Map.Entry<String, Node> varEntry : Vars.entrySet()) {
+            // if the variable not evidence or ancestor - no need factor
+            if (isAncestor(varEntry.getValue(),query.getQueryVariable(),evidenceMap)) {
+                //convert cpt to factor and add to factors list
+                factorsList.add(CPTtoFactor(varEntry.getValue(), evidenceMap));
+            }
+        }
+
+        return factorsList;
+    }
+
+    /**
+     * convert givens variable CPT (Variable [][]) to factor (ArrayList<ArrayList<Variable>>)
+     * @param var
+     * @param evidenceMap
+     * @return factor
+     */
+    private Factor CPTtoFactor(Node var, HashMap<String, Variable> evidenceMap) {
+        Factor factor = new Factor();
+
+        factor.setVarName(var.getVarName());
+        factor.setVarParentsNum(var.getParents().length);
+
+
+        for (int i = 0; i < var.getCPT().length; i++) {
+            //every row in the CPT became to ArrayList in the factor
+            ArrayList<Variable> row = new ArrayList<>(Arrays.asList(var.getCPT()[i]));
+
+            //rows with opposite evidance value no nedded in the factor
+            boolean neededRow = true;
+
+            //check for every variable if he needed in the row - evidance variables no needed
+            for (Map.Entry<String, Variable> evi : evidenceMap.entrySet()) {
+                if (neededRow) {
+                    Variable evidence = evi.getValue();
+
+                    //remove all the rows that has no like query value evidence variable
+                    if (!needToAddRow(evidence, row))
+                        neededRow = false;
+                    if (row.contains(evidence))
+                        row.remove(evidence);// remove all the evidence variables
+                }
+            }
+
+            // if the variable is evidence , it has the same value as the query
+            if(evidenceMap.containsKey(var.getVarName())){
+                boolean findProbRow = false;
+                double complementary = 0;
+
+
+                for (int j = var.getParents().length; j < row.size(); j++) {
+                    String checkedVar = row.get(j).getVariableName();
+
+                    //if the value in the cpt is the needed value - mark hes probability
+                    if (checkedVar.equals(evidenceMap.get(var.getVarName()).getValue())) {
+                        findProbRow = true;
+                    } else {// if not - calc the complementary
+                        complementary += Double.parseDouble(row.get(j).getValue());
+                        row.remove(j--);
+                    }
+                }
+
+                // no find the probability row in the cpt - need to calculate the complementary
+                if (!findProbRow) {
+                    complementary = 1 - complementary;
+                    row.add(new Variable(evidenceMap.get(var.getVarName()).getValue(), String.valueOf(complementary)));
+                }
+
+                // add the row to factor table
+                if (neededRow)
+                    factor.getFactorTable().add(row);
+
+            }else {// the variable not an evidence - needed hes own column in the factor
+
+                //find the index to add the variables column
+                int index = var.getParents().length;
+                for (int j = 0; j < var.getParents().length; j++) {
+                    if(evidenceMap.containsKey(var.getParents()[j])){
+                        index --;
+                    }
+                }
+
+                //the index of the probability of the row
+                int probAnsCell = index+1;
+
+
+                for (int j = 0; j < var.getValues().length; j++) {
+                    if (neededRow) {
+                        boolean noProbForVar = true;
+                        double complementary = 0;
+
+                        ArrayList<Variable> editedRow = new ArrayList<>(row);
+
+                        // removes the evidance variables
+                        if (editedRow.get(index).getVariableName().equals(var.getVarName())) {
+                            editedRow.remove(index);
+                        }
+                        editedRow.add(index, new Variable(var.getVarName(), var.getValues()[j].substring(1)));
+
+                        //the probability value doesn't match, need to find or calculate the right value
+                        if (!editedRow.get(probAnsCell).getVariableName().equals(editedRow.get(index).getValue())) {
+                            ArrayList<String> ansValue = new ArrayList<>(Arrays.asList(var.getValues()));
+
+                            //calculation of the complementary and remove the no needed value
+                            complementary += Double.parseDouble(editedRow.get(probAnsCell).getValue());
+                            ansValue.remove(" " + editedRow.get(probAnsCell).getVariableName());
+
+                            // look for the procced of the CPT - metby their the right value
+                            for (int k = 1; k < var.getValues().length - 1 && noProbForVar; k++) {
+
+                                //finds the needed probability
+                                if (editedRow.get(probAnsCell + k).getVariableName().equals(editedRow.get(index).getValue())) {
+                                    editedRow.set(probAnsCell, editedRow.get(probAnsCell + k));
+
+                                    for (int l = probAnsCell+1; l < editedRow.size(); l++) {
+                                        editedRow.remove(l);
+                                    }
+
+                                    //mark that finds the nedded probability
+                                    noProbForVar = false;
+                                } else {
+                                    //add to calculation of the complementary and removes the no needed column
+                                    complementary += Double.parseDouble(editedRow.get(probAnsCell + k).getValue());
+                                    ansValue.remove(" "+editedRow.get((probAnsCell + k)).getVariableName());
+                                }
+                            }
+
+                            if (noProbForVar) {//its no ans that we find - calculate the complementary ans
+                                complementary = 1 - complementary;
+                                editedRow.set(probAnsCell, new Variable(ansValue.get(0), String.valueOf(complementary)));
+                                for (int l = probAnsCell+1; l < editedRow.size(); l++) {
+                                    editedRow.remove(l);
+                                }
+                            }
+
+                        }else {// the probability in the table is the right - just remove the next unnecessary columns
+                            for (int l = probAnsCell+1; l < editedRow.size(); l++) {
+                                editedRow.remove(l);
+                            }
+                        }
+
+                        //add the new row to the factor
+                        factor.getFactorTable().add(editedRow);
+                    }
+                }
+            }
+        }
+
+        //find all the variables of the factor and their column - for Join uses
+        generateVariables(factor);
+
+        return factor;
+    }
+
+    /**
+     * check if the variable is ancestor of the query variable or the evidence variables
+     * @param var
+     * @param queryVariable
+     * @param evidence
+     * @return true if the variable is ancestor
+     */
     private boolean isAncestor(Node var, Variable queryVariable, HashMap<String, Variable> evidence) {
         boolean ans;
-        if (queryVariable.getVariableName().equals(var.getVarName()) || evidence.containsKey(var.getVarName())) {//TODO if its query its no need?
+
+        //if the variable is evisence or query its automaticly true
+        if (queryVariable.getVariableName().equals(var.getVarName()) || evidence.containsKey(var.getVarName())) {
             return true;
         }
 
+        //check for the query
         ans = isAncestorRecursive(var, Vars.get(queryVariable.getVariableName()).getParents());
 
+        //check for the evidence
         if (!ans) {
             for (Map.Entry<String, Variable> evidenceEntry : evidence.entrySet()) {
                 ans = isAncestorRecursive(var, Vars.get(evidenceEntry.getValue().getVariableName()).getParents());
@@ -64,6 +489,12 @@ public class Algorithms {
         return ans;
     }
 
+    /**
+     * recursive check throw the parents of the parents
+     * @param var
+     * @param parents
+     * @return
+     */
     private boolean isAncestorRecursive(Node var , String[] parents){
         if(parents.length == 0){
             return false;
@@ -75,7 +506,7 @@ public class Algorithms {
             }else{
                 boolean ans = isAncestorRecursive(var,Vars.get(parent).getParents());
                 if(ans){
-                    return ans;
+                    return true;
                 }
             }
         }
@@ -83,251 +514,78 @@ public class Algorithms {
         return false;
     }
 
-    private ArrayList<Factor> findFacrotsToJoin(ArrayList<Factor> factorsList, String hiddenVariable) {
-        ArrayList<Factor> factorsToJoin = new ArrayList<>();
-        for (Factor factor : factorsList) {
-            if (factor.getVariables().containsKey(hiddenVariable)  && !factorsToJoin.contains(factor)) {
-                factorsToJoin.add(factor);
-            }
-        }
-
-        factorsToJoin.sort(Factor::compareTo);
-
-//        System.out.println("factorsToJoin : " +factorsToJoin + " \n\n\n");
-
-        return factorsToJoin;
-    }
-
-    private Factor JoinFactors(Factor factor1, Factor factor2, String hiddenVar) {
-        Factor result = new Factor();
-        ArrayList<ArrayList<Variable>> ansFactorTable = new ArrayList<>();
-
-//        System.out.println(factor1);
-
-
-        ArrayList<String> shared = sharedVarsInFactors(factor1.getVariables(), factor2.getVariables());
-
-
-        for (int k = 0; k < factor1.getFactorTable().size(); k++) {
-            //ArrayList<Variable> rowFactor1 : factor1.getFactorTable()) {
-
-            ArrayList<Variable> rowFactor1 = factor1.getFactorTable().get(k);
-            ArrayList<Variable> ansRow = new ArrayList<>();
-
-            double mulAns;
-//            for (ArrayList<Variable> rowFactor2 : factor2.getFactorTable()) {
-            for (int j = 0; j < factor1.getFactorTable().size(); j++) {
-                //ArrayList<Variable> rowFactor1 : factor1.getFactorTable()) {
-
-                ArrayList<Variable> rowFactor2 = factor2.getFactorTable().get(j);
-
-                boolean canMerge = true;
-                mulAns = 0;
-
-                for (String sharedVar : shared) {
-
-                    if(factor1.getVariables().get(sharedVar) != null && factor2.getVariables().get(sharedVar) != null){
-                        int column1 = factor1.getVariables().get(sharedVar);//the column of the mutual var in factor 1
-                        int column2 = factor2.getVariables().get(sharedVar);//the column of the mutual var in factor 2
-
-//                        System.out.println("*************factor1:\n" + factor1 + "\n****************");
-//                        System.out.println("*************factor2:\n" + factor2 + "\n****************");
-//
-//                        System.out.println("shVar 1:" + factor1.getVariables().get(sharedVar));
-//                        System.out.println("shVar :" + factor1.getVariables());
-//                        System.out.println("shVar 2:" + factor2.getVariables().get(sharedVar));
-//                        System.out.println("shVar :" + factor2.getVariables());
-//                        System.out.println("column1:" + column1 + ", column:" + column2);
-//                        System.out.println("rowFactor1.get(column1).getValue()"  + rowFactor1+", indexI : "+ k + ", indexJ" + j);
-
-                        if (!rowFactor1.get(column1).getValue().equals(rowFactor2.get(column2).getValue())) {// if the mutual var has the same val
-                            canMerge = false;
-                        }
-                    }
-                }
-                if(canMerge){
-
-
-//                    System.out.println("val : " + rowFactor1.get(rowFactor1.size()-1).getValue());
-//                    mulAns = Double.parseDouble(rowFactor1.get(rowFactor1.size()-1).getValue()) *
-//                            Double.parseDouble(rowFactor2.get(rowFactor2.size()-1).getValue());
-
-
-                    rowFactor1.remove(rowFactor1.size()-1);
-                    ansRow.addAll(rowFactor1);
-
-                    int iterateAnsList = factor2.getVariables().size()-1 - shared.size();
-                    for (int i = 0; i < iterateAnsList; i++) {
-                        if(!shared.contains(rowFactor2.get(i).getVariableName())){
-                            ansRow.add(rowFactor1.get(i));
-                        }
-                    }
-
-                    ansRow.add(new Variable(rowFactor2.get(rowFactor2.size()-1).getVariableName(), String.valueOf(decimalFormat.format(mulAns))));
-                }
-//                System.out.println(ansRow);
-                ansFactorTable.add(ansRow);
-            }
-//            System.out.println("\n");
-
-        }
-
-        return result;
-    }
-
+    /**
+     * finds all the mutual variables on the 2 factors
+     * @param vars1
+     * @param vars2
+     * @return
+     */
     private ArrayList<String> sharedVarsInFactors(HashMap<String, Integer> vars1, HashMap<String, Integer> vars2) {
 
-        ArrayList<String> varsList2= new ArrayList<>(vars2.keySet());
         ArrayList<String> result = new ArrayList<>(vars1.keySet());
-
-        varsList2.removeAll(vars1.keySet());
-        result.addAll(varsList2);
+        result.retainAll(vars2.keySet());
 
         return result;
     }
 
-    private ArrayList<Factor> initialFactors(myQuery query, ArrayList<String> hiddensList) {
-        ArrayList<Factor> factorsList = new ArrayList<>();
-        HashMap<String,Variable> evidenceMap =  new HashMap<>();
+    /**
+     * final normalization with Alfa
+     * @param factor
+     * @param queryVariable
+     * @return query answer after normalization
+     */
+    private double normlizeAns(Factor factor, Variable queryVariable) {
+        double queryAns = 0 , Alfa = 0;
 
-        ArrayList<Variable> evidenceVariables = query.getEvidenceVariables(); //Variable queryVariable = query.getQueryVariable();
-        for(Variable evidence : evidenceVariables ){
-            evidenceMap.put(evidence.getVariableName(), evidence);
-        }
+        //the first one is plus on zero
+        plusCount += (factor.getFactorTable().size()-1);
 
-        for (Map.Entry<String, Node> varEntry : Vars.entrySet()) {// factor for eche variable
-            if (isAncestor(varEntry.getValue(),query.getQueryVariable(),evidenceMap)) {// if the variable not evidence or ancestor - no need factor
-                factorsList.add(CPTtoFactor(varEntry.getValue(), evidenceMap));//convert cpt to factor and add to factors list
+        for(ArrayList<Variable> row : factor.getFactorTable()){
+            if(row.contains(queryVariable)){
+                queryAns = Double.parseDouble(row.get(row.size()-1).getValue());
             }
+
+            Alfa += Double.parseDouble(row.get(row.size()-1).getValue());
         }
 
-        System.out.println(factorsList);
-
-        return factorsList;
+        return queryAns*(1/Alfa);
     }
 
-    private Factor CPTtoFactor(Node var, HashMap<String, Variable> evidenceMap) {
-        Factor factor = new Factor();
+    /**
+     * find all the variables of the factor and their column - for Join uses
+     * @param factor
+     */
+    private void generateVariables(Factor factor) {
+        factor.setVariables(new HashMap<>());
 
-        factor.setVarName(var.getVarName());
-        factor.setVarParentsNum(var.getParents().length);
-
-            System.out.println("var.getVarName() : " +var.getVarName());
-
-            for (int i = 0; i < var.getCPT().length; i++) {
-                ArrayList<Variable> row = new ArrayList<>(Arrays.asList(var.getCPT()[i]));
-                boolean neededRow = true;
-
-                for(Map.Entry<String ,Variable> evi : evidenceMap.entrySet()) {
-                    if (neededRow) {
-                        Variable evidence = evi.getValue();
-                        if (!needToAddRow(evidence, row)) neededRow = false;
-                        if (row.contains(evidence)) row.remove(evidence);// remove all the evidance vars
-                    }
-                }
-
-                boolean findProbRow = false;
-                double complementary = 0;
-
-                //if the val in the cpt is the needed val
-                for (int j = var.getParents().length; j < row.size(); j++) {
-                    String checkedVar = row.get(j).getVariableName();
-                    if (checkedVar.equals(evidenceMap.get(var.getVarName()).getValue())) {
-                        findProbRow = true;
-                    } else {
-                        complementary += Double.parseDouble(row.get(j).getValue());
-                        row.remove(j--);
-                    }
-                }
-
-                if(!findProbRow){
-                    complementary = 1 - complementary;
-                    row.add(new Variable(evidenceMap.get(var.getVarName()).getValue(), String.valueOf(decimalFormat.format(complementary))));
-                }
-
-                if(neededRow){
-                    factor.getFactorTable().add(row);
-                }
-            }
-
-        if(!evidenceMap.containsKey(var.getVarName())){ // if the variable is evidence , it has the same value as the query
-            int k = 0;
-            for (int i = 0; i < var.getCPT().length * var.getValues().length; i++) {// all the options for the var  - hes option in the cpt * hes values
-                factor.getFactorTable().add(new ArrayList<>());
-
-//                int j = 0;
-//                for (j = 0; j < var.getParents().length; j++) { //iterate on
-//
-////                    Variable current = var.getCPT()[i % var.getCPT().length][j];
-////                    String [] currValues = Vars.get(current.getVariableName()).getValues();
-////                    for (int l = 0; l < currValues.length ; l++) {
-////                        if(!current.getValue().equals(currValues[i])){
-////                            current.setValue();
-////                        }
-////                    }
-//
-//                    if(!evidenceMap.containsKey(var.getCPT()[i % var.getCPT().length][j].getVariableName())) {
-//                        factor.getFactorTable().get(i).add(var.getCPT()[i % var.getCPT().length][j]);
-//                    }
-//                }
-                if (i % var.getCPT().length == 0 && i != 0) k++; //the next value of the variable
-                String value = var.getValues()[k].substring(1);
-                factor.getFactorTable().get(i).add(new Variable(var.getVarName(), value));
-                factor.getFactorTable().get(i).add(new Variable(value, "-1"));
-
-                for (int l = 0; l < var.getValues().length - 1; l++) {//calculate the values
-                    int col =factor.getFactorTable().get(i).size()-1;
-                    if (factor.getFactorTable().get(i).get(col).getValue().equals("-1")) {
-                        if (factor.getFactorTable().get(i).get(col-1).getValue().equals(var.getCPT()[i % var.getCPT().length][j + l].getVariableName())) {
-                            factor.getFactorTable().get(i).get(col).setValue(var.getCPT()[i % var.getCPT().length][j + l].getValue());
-                        }
-                    }
-                }
-            }
-            int numOfparentsValue = calcParentsValue(var);
-
-            int index =  numOfparentsValue * (var.getValues().length - 1);
-            int lastCol = factor.getFactorTable().get(0).size() - 1;
-
-
-            for (int i = index; i < factor.getFactorTable().size(); i++) {
-                index = i;
-                if (factor.getFactorTable().get(i).get(lastCol).getValue().equals("-1")) {//calculate the complementary value
-                    double complementary = 0;
-                    for (int m = 0; m < var.getValues().length - 1; m++) {
-                        index -= numOfparentsValue;
-                        complementary += Double.parseDouble(factor.getFactorTable().get(index).get(lastCol).getValue());
-                    }
-                    factor.getFactorTable().get(i).get(lastCol).setValue(String.valueOf(decimalFormat.format(1 - complementary)));//TODO the complementary with % num of parents value
-                }
-            }
-        }
-
-
-
-        for (ArrayList<Variable> row : factor.getFactorTable()) {// generate the variables map of the current factor
-            factor.getVariables().put(var.getVarName(), -1);
-            for (int j = 0; j < factor.getVarParentsNum(); j++) {
+        // generate the variables map of the current factor
+        for (ArrayList<Variable> row : factor.getFactorTable()) {
+            for (int j = 0; j < row.size()-1; j++) {
                 String varName = row.get(j).getVariableName();
-                if (!factor.getVariables().containsKey(varName) && !evidenceMap.containsKey(varName) && Vars.containsKey(varName)) {
-                    factor.getVariables().put(varName,j);// insert the var and the column of the var
+
+                if (!factor.getVariables().containsKey(varName)  && Vars.containsKey(varName)) {
+                    // insert the var and the column of the var
+                    factor.getVariables().put(varName,j);
                 }
             }
         }
-//        System.out.println("variables: " + factor.getVariables());
-
-//        System.out.println("factor " + factor.getVarName()  +": "+ factor.getFactorTable() + "\nvars: "+ factor.getVariables() + " \n\n");
-
-        return factor;
     }
 
+    /**
+     *
+     * @param evidence
+     * @param row
+     * @return true if the row not contains evidance variable with no like query value
+     */
     private boolean needToAddRow(Variable evidence, ArrayList<Variable> row) {
+        Variable tmp = new Variable(evidence);
 
-        for (String value : Vars.get(evidence.getVariableName()).getValues()){// remove all the rows that has wrong val of evidence var
-            if(!evidence.getValue().equals(value)){
-                evidence.setValue(value);
+        for (String value : Vars.get(tmp.getVariableName()).getValues()){
+            value = value.substring(1);
+            if(!tmp.getValue().equals(value)){
+                tmp.setValue(value);
 
-                if(row.contains(evidence)){
+                if(row.contains(tmp)){
                     return false;
                 }
             }
@@ -335,39 +593,71 @@ public class Algorithms {
         return true;
     }
 
-    private int calcParentsValue(Node var) {
-
-        int numOfparentsValue = 1;
-        for (int m = 0; m < var.getParents().length; m++) {
-            numOfparentsValue *= Vars.get(var.getParents()[m]).getValues().length;
-        }
-
-        return numOfparentsValue;
-    }
 
     public void firstAlgo(myQuery query) {
-//        mullCount = 0;
-//        plusCount = 0;
-//
-//        double numeratorSum = calcQuery(query);
-//        double denominatorSum = calcDenominator(query);
-//
+        mulCount = 0;
+        plusCount = 0;
+
+        double numeratorSum = calcQuery(query);
+        double denominatorSum =0 ;
+
+        ArrayList <Double> complementaryList = new ArrayList<>();
+        String  []  values = Vars.get(query.getQueryVariable().getVariableName()).getValues();
+
+        for (String value : values) {// for the denominator calculation
+            if (!value.substring(1).equals(query.getQueryVariable().getValue())) {
+
+                myQuery compQuery = new myQuery(
+                        new Variable(query.getQueryVariable().getVariableName(), value.substring(1)),
+                        query.getEvidenceVariables(), query.getAlgoNum());
+
+
+                complementaryList.add(calcQuery(compQuery));
+            }
+        }
+
+        for (Double aComplementaryList : complementaryList) {
+            denominatorSum += aComplementaryList;
+
+            //the first one is on the zero
+            if (denominatorSum != 0) {
+                plusCount++;
+            }
+        }
+
+
+
+
+        System.out.println("\n QUERY:" +query);
+
+
+
 //        System.out.println(numeratorSum + " , " + (denominatorSum + numeratorSum));
-//
-////         queryProbSum ;  //P(q|e1..en) = P(q,e1..en) / P(e1...en)
-//
-//        double queryProbSum = numeratorSum/(denominatorSum + numeratorSum);
-//        System.out.println("\n\n RESULT: "+queryProbSum+ ", pluses:" + plusCount+", muls:" + mullCount );
+
+//         queryProbSum ;  //P(q|e1..en) = P(q,e1..en) / P(e1...en)
+
+        double queryProbSum = numeratorSum/(denominatorSum + numeratorSum);
+
+        System.out.println("ANSWER : " + queryProbSum);
+        System.out.println("pluses : " + plusCount + " , muls : "+ mulCount);
+
     }
 
 
     private double calcQuery(myQuery query) {
 
-        ArrayList<HashMap<String, Variable>> hidenPermutations = listPermutations( getHiddens(query) );
+        ArrayList<HashMap<String, Variable>> hidenPermutations = listPermutationsRecursive( getHiddens(query) );
 
         return calcQueryProbability(hidenPermutations, knownVariebles);
     }
 
+
+
+    /**
+     * look for all the variables that no query or evidence variables of the Query
+     * @param query
+     * @return all the hiddens of the cureent query
+     */
     private ArrayList<String> getHiddens(myQuery query) {
         knownVariebles = new HashMap<>();
         ArrayList<String> hiddenVariebles = new ArrayList<>();
@@ -397,18 +687,23 @@ public class Algorithms {
         ArrayList <Double> complementaryList = new ArrayList<>();
         String  []  values = Vars.get(query.getQueryVariable().getVariableName()).getValues();
 
-        for (int i = 0; i <values.length ; i++) {// for the denominator calculation
-            if(!values[i].substring(1).equals(query.getQueryVariable().getValue())){
-                System.out.println("CHECK: "+values[i] +" , " +query.getQueryVariable());
-                myQuery compQuery = new myQuery(new Variable(query.getQueryVariable().getVariableName(),values[i].substring(1)) ,
-                        query.getEvidenceVariables(),query.getAlgoNum());
+        for (String value : values) {// for the denominator calculation
+            if (!value.substring(1).equals(query.getQueryVariable().getValue())) {
+//                System.out.println("CHECK: " + value + " , " + query.getQueryVariable());
+                myQuery compQuery = new myQuery(new Variable(query.getQueryVariable().getVariableName(), value.substring(1)),
+                        query.getEvidenceVariables(), query.getAlgoNum());
                 complementaryList.add(calcQuery(compQuery));
             }
         }
-        System.out.println(complementaryList);
-        for (int i = 0; i < complementaryList.size(); i++) {
-            denominatorSum += complementaryList.get(i);
-            plusCount++;
+//        System.out.println(complementaryList);
+
+        for (Double aComplementaryList : complementaryList) {
+            denominatorSum += aComplementaryList;
+
+            //the first one is on the zero
+            if(denominatorSum != 0){
+                plusCount++;
+            }
         }
 
         return denominatorSum;
@@ -453,20 +748,15 @@ public class Algorithms {
 //        }
 
         for (HashMap<String, Variable> hidenMap : hidenPermutations) {// num of +
-            double currentPermutationSum = 0 , varMultiplying = 1;
+            double currentPermutationSum  , varMultiplying = 1;
 
-            System.out.println();
-            System.out.println(hidenMap);
+//            System.out.println();
+//            System.out.println(hidenMap);
 
             for (Map.Entry<String, Node> varEntry : Vars.entrySet()) {// num of *
                 Node currentNode = varEntry.getValue();
                 Variable[][] currentCPT = currentNode.getCPT();
-                System.out.println("var : \n"+ currentNode+"\n");
-                String notValues [];
-                boolean notVar = false;
-                int cellToChange = 0, rowToChange = 0;
-
-//                    System.out.println(currentNode.getVarName());
+//                System.out.println("var : \n"+ currentNode+"\n");
 
                 boolean findTheVal = false;
                 for (int i = 0; i < currentCPT.length && !findTheVal; i++) {
@@ -482,8 +772,7 @@ public class Algorithms {
 
                     if(correctRow){
 //                            System.out.println("correct row:"+currentNode.getVarName());
-                        int correctCol = 0;
-                        Variable tmp = new Variable("","");
+                        int correctCol ;
                         if(nothiden.get(currentNode.getVarName()) != null) {//the checked var is not hiden
                             correctCol = findValColumn(nothiden.get(currentNode.getVarName()).getValue(), currentNode.getValues());
 
@@ -495,30 +784,30 @@ public class Algorithms {
 //                                System.out.println("var: "+currentNode.getVarName()+ ", col:" + correctCol);
                             double complementary = clacComplementary(currentNode, i);
                             currentPermutationSum = 1-complementary;
-                            System.out.println(currentNode.getVarName() + " mul (complementary) " +currentPermutationSum);
+//                            System.out.println(currentNode.getVarName() + " mul (complementary) " +currentPermutationSum);
                         }else {
                             correctCol += currentNode.getParents().length;
 //                                System.out.println("var: "+currentNode.getVarName()+ ", col:" + correctCol);
-                            System.out.println(currentNode.getVarName() + " mul " +Double.parseDouble(currentCPT[i][correctCol].getValue()));
+//                            System.out.println(currentNode.getVarName() + " mul " +Double.parseDouble(currentCPT[i][correctCol].getValue()));
                             currentPermutationSum = Double.parseDouble(currentCPT[i][correctCol].getValue());
                         }
 
                         if(varMultiplying!=1){
-                            mullCount++;
+                            mulCount++;
                         }
                         varMultiplying *= currentPermutationSum;
                         findTheVal = true;
                     }
                 }
             }
-//                mullCount--;
-            System.out.println("mul sum "+ varMultiplying);
+//                mulCount--;
+//            System.out.println("mul sum "+ varMultiplying);
             if(result != 0){
                 plusCount++;
             }
             result += varMultiplying;
         }
-        System.out.println("result " + result+"\n");
+//        System.out.println("result " + result+"\n");
         return result ;
     }
 
@@ -530,21 +819,8 @@ public class Algorithms {
         return  complementary;
     }
 
-    private String clacComplementaryFactors(String[] values, String currentValue) {
-        double complementary = 0;
-        for (int j = 0; j < values.length; j++) {
-            if(!values[j].equals(currentValue)) {
-//                complementary += Double.parseDouble(currentNode.getCPT()[i][j].getValue());
-            }
-        }
-        return  String.valueOf(complementary);
-    }
-
     private boolean isCorrectCPTcell(Node currentNode, HashMap<String, Variable> hidenMap, HashMap<String, Variable> nothiden, int i, int j) {
         Variable tmp;
-//        System.out.println("int the func");
-//        System.out.println(currentNode.getParents()[j]);
-//        System.out.println(currentNode.getCPT()[i][j]);
         return ((tmp = nothiden.get(currentNode.getParents()[j])) != null &&  tmp.equals(currentNode.getCPT()[i][j]))
                 || ((tmp = hidenMap.get(currentNode.getParents()[j])) != null && tmp.equals(currentNode.getCPT()[i][j]));
     }
@@ -558,7 +834,7 @@ public class Algorithms {
         return -1;
     }
 
-    public ArrayList<HashMap<String, Variable>> listPermutations(ArrayList<String> list) {
+    private ArrayList<HashMap<String, Variable>> listPermutationsRecursive(ArrayList<String> list) {
 
         if (list.size() == 0) {
             ArrayList<HashMap<String, Variable>> result = new ArrayList<>();
@@ -570,7 +846,7 @@ public class Algorithms {
 
         String firstElement = list.remove(0);
 
-        ArrayList<HashMap<String, Variable>> recursiveReturn = listPermutations(list);
+        ArrayList<HashMap<String, Variable>> recursiveReturn = listPermutationsRecursive(list);
         for (HashMap<String, Variable> map: recursiveReturn) {
 
             for(String val : Vars.get(firstElement).getValues()){
@@ -580,8 +856,5 @@ public class Algorithms {
             }
         }
         return resultLists;
-    }
-
-    public void thirdAlgo(myQuery query) {
     }
 }

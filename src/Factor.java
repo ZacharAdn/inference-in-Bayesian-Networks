@@ -17,11 +17,11 @@ public class Factor implements Comparable<Factor>{
         variables = new HashMap<>();//map of the var name and the column in the factor table
     }
 
-    public Factor(String _varName, int _varParentsNum, ArrayList<ArrayList<Variable>> _factor , HashMap<String, Integer> _variables) {
+    public Factor(String _varName, int _varParentsNum, ArrayList<ArrayList<Variable>> _factor ) {
         varName = _varName;
         varParentsNum = _varParentsNum;
         factorTable = _factor;
-        variables = _variables;
+        variables = new HashMap<>();//map of the var name and the column in the factor table
     }
 
     public ArrayList<ArrayList<Variable>> getFactorTable() {
