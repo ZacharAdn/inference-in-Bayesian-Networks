@@ -1,19 +1,46 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringJoiner;
 
 /**
  * Created by zahar on 01/01/17.
  */
-public class readFile {
+public class IOfile {
 
     private ArrayList<myQuery> Queries;
     private HashMap<String, Node> Vars;
+    private String fileName;
+    private PrintWriter writer;
 
-    public readFile(String fileName) {
+    /**
+     * Read from file & Write to file
+     * @param fileName
+     */
+    public IOfile( String fileName) {
+        this.fileName = fileName;
+    }
+
+    public void makeFileToWrite(){
+        writer = null;
+        try {
+            writer = new PrintWriter("output"+fileName.substring(5));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void writeFile(String queryAns) {
+        writer.println(queryAns);
+//        writer.close();
+    }
+
+    /**
+     * read from file and make Node for every Var
+     *
+     */
+    public void readFile() {
         Vars = new HashMap<>();
         int rows,columns,numOfParentsValues;
         String line;
@@ -25,7 +52,7 @@ public class readFile {
             BufferedReader bufferReader = new BufferedReader(inputFile);
 
 
-            //resad all the vars from the file.
+            //read all the vars from the file.
             if(bufferReader.readLine().contains("Network")) {
                 line = bufferReader.readLine();
                 bufferReader.readLine();
@@ -51,11 +78,11 @@ public class readFile {
                             currentNode.setParents(line.split(","));
 
                             for (String parent : currentNode.getParents()) {
-                                    if (Vars.containsKey(parent)) {
-                                        Node node = Vars.get(parent);
-                                        if (node.getValues() != null) {
-                                            numOfParentsValues *= node.getValues().length;
-                                        }
+                                if (Vars.containsKey(parent)) {
+                                    Node node = Vars.get(parent);
+                                    if (node.getValues() != null) {
+                                        numOfParentsValues *= node.getValues().length;
+                                    }
                                 }
                             }
                         }else {
@@ -94,11 +121,6 @@ public class readFile {
                 }
             }
 
-//
-//            for (Map.Entry<String , Node> varEntry : Vars.entrySet()){
-//                System.out.println(varEntry.getValue());
-//            }
-
             // read all the queries from the file
             if(bufferReader.readLine().contains("Queries")){
                 Queries  = new ArrayList<>();
@@ -118,32 +140,23 @@ public class readFile {
                 }
             }
 
-//            for (myQuery query : Queries){
-//                System.out.println(query);
-//            }
-
             bufferReader.close();
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
+    public PrintWriter getWriter() {
+        return writer;
+    }
 
     public ArrayList<myQuery> getQueries() {
         return Queries;
     }
 
-    public void setQueries(ArrayList<myQuery> queries) {
-        Queries = queries;
-    }
-
-
     public HashMap<String, Node> getVars() {
         return Vars;
-    }
-
-    public void setVars(HashMap<String, Node> vars) {
-        Vars = vars;
     }
 }

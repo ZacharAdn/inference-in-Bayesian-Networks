@@ -7,13 +7,15 @@ public class ex1 {
 
 
     public static void main(String[] args) {
-        readFile file = new readFile("/home/zahar/Documents/WorkPlace/Java/IdeaProjects/AlgoDecisions/src/files/input.txt");
+        String fileName = "input2.txt";
+        IOfile file = new IOfile(fileName);
+        file.readFile();
 
 
         ArrayList<myQuery> queries = file.getQueries();
         HashMap<String, Node> Vars = file.getVars();
 
-        Algorithms algorithms = new Algorithms (Vars);
+        Algorithms algorithms = new Algorithms (Vars , file);
 
 
         for (myQuery query : queries) {
@@ -25,5 +27,7 @@ public class ex1 {
                 algorithms.thirdAlgo(query);
             }
         }
+
+        file.getWriter().close();
     }
 }

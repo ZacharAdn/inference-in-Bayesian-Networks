@@ -6,24 +6,79 @@ import java.util.*;
  */
 public class Algorithms {
 
-    private DecimalFormat decimalFormat;
     private HashMap<String, Node> Vars;
     private HashMap<String, Variable> knownVariebles;
     private int mulCount;
     private int plusCount;
     private int FIRST_ELEMENT = 0;
+    private IOfile file;
 
     /**
      * Constructor for Algorithms
      * @param _Vars
+     * @param _file
      */
-    public Algorithms(HashMap<String, Node> _Vars) {
-        Vars=_Vars;
-        decimalFormat = new DecimalFormat("#.#####");
+    public Algorithms(HashMap<String, Node> _Vars, IOfile _file) {
+        Vars =_Vars;
+        file  = _file;
+        file.makeFileToWrite();
     }
 
+
+
     /**
-     * Variable Elimination Algorithm
+     * Simple Inference
+     * @param query
+     */
+    public void firstAlgo(myQuery query) {
+        mulCount = 0;
+        plusCount = 0;
+
+        //numerator calculation
+        double numeratorSum = calcQuery(query);
+
+        //denominator calculation - the complementary of the query variable
+        double denominatorSum = 0 ;
+
+        ArrayList <Double> complementaryList = new ArrayList<>();
+        String  []  queryVarValues = Vars.get(query.getQueryVariable().getVariableName()).getValues();
+
+        //calculate for each value of the query variable
+        for (String value : queryVarValues) {
+            if (!value.substring(1).equals(query.getQueryVariable().getValue())) {
+
+                //make new query with different value
+                myQuery compQuery = new myQuery(
+                        new Variable(query.getQueryVariable().getVariableName(), value.substring(1)),
+                        query.getEvidenceVariables(), query.getAlgoNum());
+
+                //add to complementary list
+                complementaryList.add(calcQuery(compQuery));
+            }
+        }
+
+        for (Double complementary : complementaryList) {
+            denominatorSum += complementary;
+
+            //the first one is on the zero
+            if (denominatorSum != 0) {
+                plusCount++;
+            }
+        }
+
+        denominatorSum += numeratorSum;
+
+        double queryProbSum = numeratorSum / denominatorSum;
+
+
+        String queryAns = String.format("%.5f",queryProbSum) + "," + plusCount + "," + mulCount;
+        file.writeFile(queryAns);
+
+    }
+
+
+    /**
+     * Variable Elimination Algorithm - Elimination order by the alphabet
      * @param query
      */
     public void secondAlgo(myQuery query) {
@@ -32,17 +87,218 @@ public class Algorithms {
 
     }
 
+    /**
+     * Variable Elimination Algorithm - Elimination order by num of rows each variable shown in the factors
+     * @param query
+     */
     public void thirdAlgo(myQuery query) {
 
         EliminationAlgo(query,"varRows");
     }
 
+
+
+    /**
+     *
+     * @param query
+     * @return query probability
+     */
+    private double calcQuery(myQuery query) {
+
+        //make all possible permutations for hiddens values
+        ArrayList<HashMap<String, Variable>> hidenPermutations = listPermutationsRecursive( getHiddens(query) );
+
+        return calcQueryProbability(hidenPermutations, knownVariebles);
+    }
+
+
+
+    /**
+     * look for all the variables that no query or evidence variables of the Query
+     * @param query
+     * @return all the hiddens of the cureent query
+     */
+    private ArrayList<String> getHiddens(myQuery query) {
+        knownVariebles = new HashMap<>();
+        ArrayList<String> hiddenVariebles = new ArrayList<>();
+        Variable parmToMap;
+
+
+        parmToMap = query.getQueryVariable();
+
+        // insert the query variable
+        knownVariebles.put(parmToMap.getVariableName(),parmToMap);
+
+        // insert the evidence variable
+        for (int i = 0; i < query.getEvidenceVariables().size(); i++) {
+            parmToMap = query.getEvidenceVariables().get(i);
+            knownVariebles.put(parmToMap.getVariableName(),parmToMap);
+        }
+
+        // insert all the hidden variables to list
+        for (Map.Entry<String, Node> varEntry : Vars.entrySet()) {
+            if (!knownVariebles.containsKey(varEntry.getKey())) {
+                hiddenVariebles.add(varEntry.getValue().getVarName());
+            }
+        }
+
+        return hiddenVariebles;
+    }
+
+
+    /**
+     * calculate the probability for each hidden values permutation
+     * @param hidenPermutations
+     * @param nothiden
+     * @return the probability
+     */
+    private double calcQueryProbability(ArrayList<HashMap<String, Variable>> hidenPermutations, HashMap<String, Variable> nothiden) {
+        double result = 0 ;
+
+        //for every hidden values permutation (num of pluses in the algorithm)
+        for (HashMap<String, Variable> hidenMap : hidenPermutations) {
+            double currentPermutationSum  , varMultiplying = 1;
+
+            //for every variable
+            for (Map.Entry<String, Node> varEntry : Vars.entrySet()) {
+                Node currentNode = varEntry.getValue();
+                Variable[][] currentCPT = currentNode.getCPT();
+
+                boolean findTheVal = false;
+
+                //iterate on the CPT and check if its the correct row&col answer
+                for (int i = 0; i < currentCPT.length && !findTheVal; i++) {
+                    boolean correctRow = true;
+
+                    for (int j = 0; j < currentNode.getParents().length && correctRow; j++) {
+                        if(!isCorrectCPTcell(currentNode,hidenMap,nothiden,i,j)){
+                            correctRow = false;
+                        }
+                    }
+
+                    if(correctRow){
+                        int correctCol ;
+
+                        //the checked var is not hidden
+                        if(nothiden.get(currentNode.getVarName()) != null) {
+                            correctCol = findValColumn(nothiden.get(currentNode.getVarName()).getValue(), currentNode.getValues());
+                        }else{// the checked var is hidden
+                            correctCol = findValColumn(hidenMap.get(currentNode.getVarName()).getValue(), currentNode.getValues());
+                        }
+
+                        //need to calculate the complementary
+                        if(correctCol < 0){
+                            double complementary = clacComplementary(currentNode, i);
+                            currentPermutationSum = 1-complementary;
+                        }else {
+                            correctCol += currentNode.getParents().length;
+                            currentPermutationSum = Double.parseDouble(currentCPT[i][correctCol].getValue());
+                        }
+
+                        //probability multiply
+                        if(varMultiplying!=1){
+                            mulCount++;
+                        }
+                        varMultiplying *= currentPermutationSum;
+                        findTheVal = true;
+                    }
+                }
+            }
+
+            if(result != 0){
+                plusCount++;
+            }
+            result += varMultiplying;
+        }
+        return result ;
+    }
+
+    /**
+     *
+     * @param currentNode
+     * @param i
+     * @return complementary ans
+     */
+    private double clacComplementary(Node currentNode, int i) {
+        double complementary = 0;
+        for (int j = currentNode.getParents().length; j < currentNode.getCPT()[0].length; j++) {
+            complementary += Double.parseDouble(currentNode.getCPT()[i][j].getValue());
+        }
+        return  complementary;
+    }
+
+    /**
+     *
+     * @param currentNode
+     * @param hidenMap
+     * @param nothiden
+     * @param i
+     * @param j
+     * @return true if its correct cell
+     */
+    private boolean isCorrectCPTcell(Node currentNode, HashMap<String, Variable> hidenMap, HashMap<String, Variable> nothiden, int i, int j) {
+        Variable tmp;
+        return ((tmp = nothiden.get(currentNode.getParents()[j])) != null &&  tmp.equals(currentNode.getCPT()[i][j]))
+                || ((tmp = hidenMap.get(currentNode.getParents()[j])) != null && tmp.equals(currentNode.getCPT()[i][j]));
+    }
+
+    /**
+     *
+     * @param value
+     * @param values
+     * @return the column of the value
+     */
+    private int findValColumn(String value, String[] values) {
+        for (int i = 0; i < values.length-1; i++) {
+            if(values[i].substring(1).equals(value)){
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * make map for every permutation of the hidden values
+     * @param list
+     * @return ArrayList of all the permutation
+     */
+    private ArrayList<HashMap<String, Variable>> listPermutationsRecursive(ArrayList<String> list) {
+
+        //stop condition
+        if (list.size() == 0) {
+            ArrayList<HashMap<String, Variable>> result = new ArrayList<>();
+            result.add(new HashMap<>());
+            return result;
+        }
+
+        ArrayList<HashMap<String, Variable>> resultLists = new ArrayList<HashMap<String, Variable>>();
+
+        //calculate the permutation without the first hidden
+        String firstElement = list.remove(0);
+        ArrayList<HashMap<String, Variable>> recursiveReturn = listPermutationsRecursive(list);
+
+        //for every calculated map add the first hidden with differnt value
+        for (HashMap<String, Variable> map: recursiveReturn) {
+
+            String [] hiddenValues = Vars.get(firstElement).getValues();
+            for(String val : hiddenValues){
+                HashMap<String, Variable> tmp = new HashMap<>(map);
+                tmp.put(firstElement,new Variable(firstElement ,val.substring(1)));
+                resultLists.add(tmp);
+            }
+        }
+        return resultLists;
+    }
+
+    /**
+     * Variable Elimination Algorithm
+     * @param query
+     * @param eliminationType
+     */
     private void EliminationAlgo(myQuery query, String eliminationType) {
 
         plusCount = 0;
         mulCount = 0;
-
-        System.out.println("\n QUERY:" +query );
 
         // find the hiddens of the current query
         ArrayList<String> hiddenList = getHiddens(query);
@@ -58,7 +314,7 @@ public class Algorithms {
 
         }else if(eliminationType.equals("varRows")){
 
-            //sort the hidden by num of rows in the factors - new object for that
+            //sort the hidden by num of rows in the factors - new object for that - Hidden
 
             ArrayList<Hidden> sortedHiddenList = new ArrayList<>();
             for(String hiddenName : hiddenList){
@@ -126,13 +382,16 @@ public class Algorithms {
                 resultQuery = factor;
             }
             factorsList.add(resultQuery);
+            factorsList.sort(Factor::compareTo);
         }
 
         //the final result of the query
         double ans = normlizeAns(factorsList.get(FIRST_ELEMENT) , query.getQueryVariable());
 
-        System.out.println("ANSWER : " + ans);
-        System.out.println("pluses : " + plusCount + " , muls : "+ mulCount);
+
+        String queryAns = String.format("%.5f",ans) + "," + plusCount + "," + mulCount;
+        file.writeFile(queryAns);
+
 
     }
 
@@ -594,267 +853,4 @@ public class Algorithms {
     }
 
 
-    public void firstAlgo(myQuery query) {
-        mulCount = 0;
-        plusCount = 0;
-
-        double numeratorSum = calcQuery(query);
-        double denominatorSum =0 ;
-
-        ArrayList <Double> complementaryList = new ArrayList<>();
-        String  []  values = Vars.get(query.getQueryVariable().getVariableName()).getValues();
-
-        for (String value : values) {// for the denominator calculation
-            if (!value.substring(1).equals(query.getQueryVariable().getValue())) {
-
-                myQuery compQuery = new myQuery(
-                        new Variable(query.getQueryVariable().getVariableName(), value.substring(1)),
-                        query.getEvidenceVariables(), query.getAlgoNum());
-
-
-                complementaryList.add(calcQuery(compQuery));
-            }
-        }
-
-        for (Double aComplementaryList : complementaryList) {
-            denominatorSum += aComplementaryList;
-
-            //the first one is on the zero
-            if (denominatorSum != 0) {
-                plusCount++;
-            }
-        }
-
-
-
-
-        System.out.println("\n QUERY:" +query);
-
-
-
-//        System.out.println(numeratorSum + " , " + (denominatorSum + numeratorSum));
-
-//         queryProbSum ;  //P(q|e1..en) = P(q,e1..en) / P(e1...en)
-
-        double queryProbSum = numeratorSum/(denominatorSum + numeratorSum);
-
-        System.out.println("ANSWER : " + queryProbSum);
-        System.out.println("pluses : " + plusCount + " , muls : "+ mulCount);
-
-    }
-
-
-    private double calcQuery(myQuery query) {
-
-        ArrayList<HashMap<String, Variable>> hidenPermutations = listPermutationsRecursive( getHiddens(query) );
-
-        return calcQueryProbability(hidenPermutations, knownVariebles);
-    }
-
-
-
-    /**
-     * look for all the variables that no query or evidence variables of the Query
-     * @param query
-     * @return all the hiddens of the cureent query
-     */
-    private ArrayList<String> getHiddens(myQuery query) {
-        knownVariebles = new HashMap<>();
-        ArrayList<String> hiddenVariebles = new ArrayList<>();
-        Variable parmToMap;
-
-
-        parmToMap = query.getQueryVariable();
-        knownVariebles.put(parmToMap.getVariableName(),parmToMap);// insert the query variable
-
-        for (int i = 0; i < query.getEvidenceVariables().size(); i++) {// insert the evidence variable
-            parmToMap = query.getEvidenceVariables().get(i);
-            knownVariebles.put(parmToMap.getVariableName(),parmToMap);
-        }
-
-
-        for (Map.Entry<String, Node> varEntry : Vars.entrySet()) {// insert all the hidden variables to list
-            if (!knownVariebles.containsKey(varEntry.getKey())) {
-                hiddenVariebles.add(varEntry.getValue().getVarName());
-            }
-        }
-
-        return hiddenVariebles;
-    }
-
-    private double calcDenominator(myQuery query) {
-        double denominatorSum = 0;
-        ArrayList <Double> complementaryList = new ArrayList<>();
-        String  []  values = Vars.get(query.getQueryVariable().getVariableName()).getValues();
-
-        for (String value : values) {// for the denominator calculation
-            if (!value.substring(1).equals(query.getQueryVariable().getValue())) {
-//                System.out.println("CHECK: " + value + " , " + query.getQueryVariable());
-                myQuery compQuery = new myQuery(new Variable(query.getQueryVariable().getVariableName(), value.substring(1)),
-                        query.getEvidenceVariables(), query.getAlgoNum());
-                complementaryList.add(calcQuery(compQuery));
-            }
-        }
-//        System.out.println(complementaryList);
-
-        for (Double aComplementaryList : complementaryList) {
-            denominatorSum += aComplementaryList;
-
-            //the first one is on the zero
-            if(denominatorSum != 0){
-                plusCount++;
-            }
-        }
-
-        return denominatorSum;
-    }
-
-    private double calcQueryProbability(ArrayList<HashMap<String, Variable>> hidenPermutations, HashMap<String, Variable> nothiden) {
-        double result = 0 ;
-//
-//        System.out.println("FOR no hidden : " + hidenPermutations.size());
-//
-//        if(hidenPermutations.size() == 1) {//TODO with firs query of input 2
-//            System.out.println("**********************hidenPermutations.size() == 1");
-//            for (Map.Entry<String, Variable> var : nothiden.entrySet()) {//TODO make arraylist
-//                Node currentVar = Vars.get(var.getKey());
-//                Variable[][] currentCPT = currentVar.getCPT();
-//
-//                double sum = 1, complementarySum = 0;
-//                String[] vals = Vars.get(query.getQueryVariable().getVariableName()).getValues();
-//                int valCol = findValColumn(query.getQueryVariable().getValue(), vals);
-//
-//
-//                for (int i = 0; i < currentCPT.length; i++) {
-//                    for (int j = 0; j < currentVar.getParents().length; j++) {
-//
-//                        if (nothiden.get(currentVar.getParents()[j]).equals(currentCPT[i][j])) {
-//                            System.out.println("valcol " + valCol);
-//                            if (valCol == vals.length - 1) {
-//                                for (int k = currentVar.getParents().length; k < currentCPT[0].length; k++) {
-//                                    complementarySum += Double.parseDouble(currentCPT[i][k].getValue());
-//                                }
-//                                sum *= (1 - complementarySum);
-//                            } else {
-//                                sum *= Double.parseDouble(currentCPT[i][valCol].getValue());
-//                            }
-//                            System.out.println("*********" + sum);
-//
-//                            break;
-//                        }
-//                    }
-//                }
-//            }
-//        }
-
-        for (HashMap<String, Variable> hidenMap : hidenPermutations) {// num of +
-            double currentPermutationSum  , varMultiplying = 1;
-
-//            System.out.println();
-//            System.out.println(hidenMap);
-
-            for (Map.Entry<String, Node> varEntry : Vars.entrySet()) {// num of *
-                Node currentNode = varEntry.getValue();
-                Variable[][] currentCPT = currentNode.getCPT();
-//                System.out.println("var : \n"+ currentNode+"\n");
-
-                boolean findTheVal = false;
-                for (int i = 0; i < currentCPT.length && !findTheVal; i++) {
-                    boolean correctRow = true;
-
-                    for (int j = 0; j < currentNode.getParents().length && correctRow; j++) {
-//                            System.out.println("here :"+currentNode.getVarName() + ", "+Arrays.toString(currentNode.getParents()));
-
-                        if(!isCorrectCPTcell(currentNode,hidenMap,nothiden,i,j)){
-                            correctRow = false;
-                        }
-                    }
-
-                    if(correctRow){
-//                            System.out.println("correct row:"+currentNode.getVarName());
-                        int correctCol ;
-                        if(nothiden.get(currentNode.getVarName()) != null) {//the checked var is not hiden
-                            correctCol = findValColumn(nothiden.get(currentNode.getVarName()).getValue(), currentNode.getValues());
-
-                        }else{
-                            correctCol = findValColumn(hidenMap.get(currentNode.getVarName()).getValue(), currentNode.getValues());
-                        }
-
-                        if(correctCol < 0){
-//                                System.out.println("var: "+currentNode.getVarName()+ ", col:" + correctCol);
-                            double complementary = clacComplementary(currentNode, i);
-                            currentPermutationSum = 1-complementary;
-//                            System.out.println(currentNode.getVarName() + " mul (complementary) " +currentPermutationSum);
-                        }else {
-                            correctCol += currentNode.getParents().length;
-//                                System.out.println("var: "+currentNode.getVarName()+ ", col:" + correctCol);
-//                            System.out.println(currentNode.getVarName() + " mul " +Double.parseDouble(currentCPT[i][correctCol].getValue()));
-                            currentPermutationSum = Double.parseDouble(currentCPT[i][correctCol].getValue());
-                        }
-
-                        if(varMultiplying!=1){
-                            mulCount++;
-                        }
-                        varMultiplying *= currentPermutationSum;
-                        findTheVal = true;
-                    }
-                }
-            }
-//                mulCount--;
-//            System.out.println("mul sum "+ varMultiplying);
-            if(result != 0){
-                plusCount++;
-            }
-            result += varMultiplying;
-        }
-//        System.out.println("result " + result+"\n");
-        return result ;
-    }
-
-    private double clacComplementary(Node currentNode, int i) {
-        double complementary = 0;
-        for (int j = currentNode.getParents().length; j < currentNode.getCPT()[0].length; j++) {
-            complementary += Double.parseDouble(currentNode.getCPT()[i][j].getValue());
-        }
-        return  complementary;
-    }
-
-    private boolean isCorrectCPTcell(Node currentNode, HashMap<String, Variable> hidenMap, HashMap<String, Variable> nothiden, int i, int j) {
-        Variable tmp;
-        return ((tmp = nothiden.get(currentNode.getParents()[j])) != null &&  tmp.equals(currentNode.getCPT()[i][j]))
-                || ((tmp = hidenMap.get(currentNode.getParents()[j])) != null && tmp.equals(currentNode.getCPT()[i][j]));
-    }
-
-    private int findValColumn(String value, String[] values) {
-        for (int i = 0; i < values.length-1; i++) {
-            if(values[i].substring(1).equals(value)){
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private ArrayList<HashMap<String, Variable>> listPermutationsRecursive(ArrayList<String> list) {
-
-        if (list.size() == 0) {
-            ArrayList<HashMap<String, Variable>> result = new ArrayList<>();
-            result.add(new HashMap<String, Variable>());
-            return result;
-        }
-
-        ArrayList<HashMap<String, Variable>> resultLists = new ArrayList<HashMap<String, Variable>>();
-
-        String firstElement = list.remove(0);
-
-        ArrayList<HashMap<String, Variable>> recursiveReturn = listPermutationsRecursive(list);
-        for (HashMap<String, Variable> map: recursiveReturn) {
-
-            for(String val : Vars.get(firstElement).getValues()){
-                HashMap<String, Variable> tmp = new HashMap<>(map);
-                tmp.put(firstElement,new Variable(firstElement ,val.substring(1)));
-                resultLists.add(tmp);
-            }
-        }
-        return resultLists;
-    }
 }
