@@ -10,14 +10,10 @@ public class Node {
     private String [] parents;
     private Variable[][] CPT;
 
+    /**
+     * Node - Var that was created during reading the input file
+     */
     public Node() {
-    }
-
-    public Node(String varName, String[] values, String[] parents, Variable[][] CPT) {
-        this.varName = varName;
-        this.values = values;
-        this.parents = parents;
-        this.CPT = CPT;
     }
 
     public String getVarName() {

@@ -5,7 +5,14 @@ public class Variable {
     private String variableName;
     private String value;
 
-    public Variable() {
+
+    /**
+     * Cell in the CPT or Factor
+     *
+     */
+    public Variable(String variableName, String value) {
+        this.variableName = variableName;
+        this.value = value;
     }
 
     public Variable(Variable var) {
@@ -13,18 +20,9 @@ public class Variable {
         this.value = var.value;
     }
 
-    public Variable(String variableName, String value) {
-        this.variableName = variableName;
-        this.value = value;
-    }
-
 
     public String getVariableName() {
         return variableName;
-    }
-
-    public void setVariableName(String variableName) {
-        this.variableName = variableName;
     }
 
     public String getValue() {
@@ -36,11 +34,11 @@ public class Variable {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public boolean equals(Object variable) {
+        if (this == variable) return true;
+        if (variable == null || getClass() != variable.getClass()) return false;
 
-        Variable that = (Variable) o;
+        Variable that = (Variable) variable;
 
         if (variableName != null ? !variableName.equals(that.variableName) : that.variableName != null) return false;
         return value != null ? value.equals(that.value) : that.value == null;

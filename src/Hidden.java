@@ -6,6 +6,10 @@ public class Hidden implements Comparable<Hidden>{
     private String name;
     private int rowsAppearanseCount;
 
+    /**
+     * class for the 3th algorithm - use to sort the hidden variables
+     * @param name
+     */
     public Hidden(String name) {
         this.name = name;
     }

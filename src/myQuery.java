@@ -9,6 +9,12 @@ public class myQuery {
     private ArrayList<Variable> evidenceVariables;
     private int algoNum;
 
+    /**
+     * Query readen from the input file
+     * @param query
+     * @param evidenceVariables
+     * @param algoNum
+     */
     public myQuery(Variable query, ArrayList<Variable> evidenceVariables, int algoNum) {
         this.queryVariable = query;
         this.evidenceVariables = evidenceVariables;
@@ -19,24 +25,12 @@ public class myQuery {
         return algoNum;
     }
 
-    public void setAlgoNum(int algoNum) {
-        this.algoNum = algoNum;
-    }
-
     public Variable getQueryVariable() {
         return queryVariable;
     }
 
-    public void setQueryVariable(Variable queryVariable) {
-        this.queryVariable = queryVariable;
-    }
-
     public ArrayList<Variable> getEvidenceVariables() {
         return evidenceVariables;
-    }
-
-    public void setEvidenceVariables(ArrayList<Variable> evidenceVariables) {
-        this.evidenceVariables = evidenceVariables;
     }
 
     @Override

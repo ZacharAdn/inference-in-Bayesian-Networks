@@ -22,6 +22,9 @@ public class IOfile {
         this.fileName = fileName;
     }
 
+    /**
+     * make output file for every algorithm
+     */
     public void makeFileToWrite(){
         writer = null;
         try {
@@ -31,9 +34,12 @@ public class IOfile {
         }
     }
 
+    /**
+     * write line to the file opened in the Algorithms Ctr
+     * @param queryAns
+     */
     public void writeFile(String queryAns) {
         writer.println(queryAns);
-//        writer.close();
     }
 
     /**
@@ -66,8 +72,11 @@ public class IOfile {
                     if (line.contains("Var")) {
                         Node currentNode = new Node();
 
+                        //variable name
                         currentNode.setVarName(line.substring(4));
                         line = bufferReader.readLine().substring(7);
+
+                        //variable values
                         currentNode.setValues(line.split(","));
 
                         line = bufferReader.readLine();
@@ -75,6 +84,8 @@ public class IOfile {
 
                         if (!line.contains("none")) {
                             line= line.substring(9);
+
+                            //variable parent Node names
                             currentNode.setParents(line.split(","));
 
                             for (String parent : currentNode.getParents()) {
@@ -96,6 +107,7 @@ public class IOfile {
 
                         columns = queryPart + evidancePart;
 
+                        //variables CPT
                         CPT = new Variable[rows][columns];
                         bufferReader.readLine();
 
@@ -148,8 +160,11 @@ public class IOfile {
 
     }
 
-    public PrintWriter getWriter() {
-        return writer;
+    /**
+     * close printWriter 
+     */
+    public void closeWriter() {
+        writer.close();
     }
 
     public ArrayList<myQuery> getQueries() {

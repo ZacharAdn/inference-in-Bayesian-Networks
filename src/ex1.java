@@ -7,7 +7,7 @@ public class ex1 {
 
 
     public static void main(String[] args) {
-        String fileName = "input2.txt";
+        String fileName = "input.txt";
         IOfile file = new IOfile(fileName);
         file.readFile();
 
@@ -28,6 +28,6 @@ public class ex1 {
             }
         }
 
-        file.getWriter().close();
+        file.closeWriter();
     }
 }

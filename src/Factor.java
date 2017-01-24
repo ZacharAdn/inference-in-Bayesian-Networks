@@ -12,11 +12,20 @@ public class Factor implements Comparable<Factor>{
     private int varParentsNum;
     private HashMap<String, Integer> variables;
 
+    /**
+     * Factor class
+     */
     public Factor() {
         factorTable = new ArrayList<>();
         variables = new HashMap<>();//map of the var name and the column in the factor table
     }
 
+    /**
+     *
+     * @param _varName
+     * @param _varParentsNum
+     * @param _factor
+     */
     public Factor(String _varName, int _varParentsNum, ArrayList<ArrayList<Variable>> _factor ) {
         varName = _varName;
         varParentsNum = _varParentsNum;
@@ -46,10 +55,6 @@ public class Factor implements Comparable<Factor>{
 
     public void setVariables(HashMap<String, Integer> variables) {
         this.variables = variables;
-    }
-
-    public int getVarParentsNum() {
-        return varParentsNum;
     }
 
     public void setVarParentsNum(int varParentsNum) {
