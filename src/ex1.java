@@ -7,7 +7,8 @@ public class ex1 {
 
 
     public static void main(String[] args) {
-        readFile file = new readFile("/home/zahar/IdeaProjects/AlgoDecisions/src/files/input.txt");
+        readFile file = new readFile("/home/zahar/Documents/WorkPlace/Java/IdeaProjects/AlgoDecisions/src/files/input.txt");
+
 
         ArrayList<myQuery> queries = file.getQueries();
         HashMap<String, Node> Vars = file.getVars();
