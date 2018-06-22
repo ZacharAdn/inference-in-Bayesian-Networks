@@ -1,6 +1,7 @@
 Inference In Bayesian Networks
 
-assignment course Algorithmic Decisions
+Univercity assignment in course Algorithmic Decisions
+
 
 3 Algorithms for Inference:
 
