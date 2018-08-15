@@ -1,4 +1,4 @@
-Inference In Bayesian Networks
+# Inference In Bayesian Networks
 
 Univercity assignment in course Algorithmic Decisions
 
